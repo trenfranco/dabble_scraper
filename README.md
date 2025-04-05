@@ -33,3 +33,4 @@ inside your (venv).
 You must run behind a proxy/VPN if Dabble blocks your region.
 
 The script mimics a mobile device using HTTP headers and HTTP/2.
+![image](https://github.com/user-attachments/assets/90382727-a322-43dc-9bc2-974473d7651b)
