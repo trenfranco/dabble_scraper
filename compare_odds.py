@@ -34,9 +34,8 @@ async def main():
     await asyncio.gather(*tasks)
 
 def get_game_ids():
-    # Get first NBA game ID of the day
+    # Get NBA game IDs of the day
 
-    # Current NBA games endopoint
     url = "https://api.dabble.com/competitions/2acf8935-8d89-455b-bb4b-dbfba9c4ae3b/dfs-fixtures"
     try:
         response = requests.get(url, headers=headers, proxies={"http": None, "https": None})
@@ -46,7 +45,7 @@ def get_game_ids():
         fixtures = data.get("data")
         if fixtures:
             game_urls = {}
-            MAX_GAMES = 3
+            MAX_GAMES = 5
             for game in range(min(MAX_GAMES, len(fixtures))):
                 game_url = "https://api.dabble.com/sportfixtures/details/" + fixtures[game].get("id") + "?filter=dfs-enabled"
                 game_name = fixtures[game].get("name")
@@ -64,7 +63,7 @@ def get_game_ids():
 def parse_odds(data):
     odds = {}
 
-    # Map of bet {ids:names}
+    # Map bets to a dict with format: {ids:names}
     id_names = {}
     selections = data.get("data").get("selections")
     for selection in selections:
@@ -73,7 +72,7 @@ def parse_odds(data):
 
         id_names[id] = bet_name
 
-    # Map bet {name:price} using id_names dict
+    # Map bets to a dict with format: {name:price} using id_names dict
     prices = data.get("data").get("prices")
     for price in prices:
         id = price.get("selectionId")
@@ -93,7 +92,8 @@ async def monitor_odds(game_name, game_url):
     async def fetch_data():
         # Fetch data from API using http2
         try:
-            async with httpx.AsyncClient(http2=True, verify=False) as client:
+            # Use trust_env to emulate mobile settings
+            async with httpx.AsyncClient(http2=True, trust_env=False, timeout=15.0) as client:
                 response = await client.get(game_url, headers=headers)
                 response.raise_for_status() # Raise error
 
@@ -101,8 +101,19 @@ async def monitor_odds(game_name, game_url):
                 text = response.text
                 print("...")
                 return json.loads(text)
+        except httpx.HTTPStatusError as e:
+            # Raised when .raise_for_status() fails (404, 500 ...)
+            print(f"HTTP error: {e.response.status_code} → {e}")
+            return None
+
+        except httpx.RequestError as e:
+            # Raised for connection, timeout, etc
+            print(f"Request error (timeout or connection): {type(e).__name__} → {e}")
+            return None
+
         except Exception as e:
-            print(f"Fetch error! -> {e}")
+            # For any unexpected exceptions
+            print(f"Unexpected error: {type(e).__name__} → {e}")
             return None
 
     while True:
@@ -123,11 +134,11 @@ async def monitor_odds(game_name, game_url):
                     print(f"Old Odds: {old_price} → New Odds: {new_price}")
                     print(f"Timestamp: {datetime.now().isoformat()}")
 
-            # Save the current odds to compare to the next one
+            # Save the current odds to compare to the next ones
             previous_odds = current_odds
 
-        # The odd prices refresh every ± 3 to 5 minutes
-        await asyncio.sleep(30)
+        # The odd prices refresh every 2 to 5 minutes depending of the game
+        await asyncio.sleep(15)
 
 
 
