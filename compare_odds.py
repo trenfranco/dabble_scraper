@@ -6,7 +6,6 @@ from datetime import datetime
 import brotli
 import gzip
 
-url = None
 headers = {
     "Host": "api.dabble.com",
     "Connection": "keep-alive",
@@ -16,21 +15,25 @@ headers = {
     "Authorization": "",
     "Accept-Encoding": "gzip, deflate, br"
 }
-previous_odds = {}
 
 async def main():
-    global url
 
-    # Get first NBA game
-    game_url = get_first_game_id()
-    if not game_url:
-        print("Could not get a game URL!")
+    # Get NBA game ids
+    game_urls = get_game_ids()
+    if not game_urls:
+        print("Could not get game URLs!")
         return
     
-    url = game_url
-    await monitor_odds()
+    # Append and execute tasks
+    tasks = []
+    print("Monitoring the following games: ")
+    for game_name, game_url in game_urls.items():
+        print(f"    -{game_name}")
+        tasks.append(asyncio.create_task(monitor_odds(game_name, game_url)))
 
-def get_first_game_id():
+    await asyncio.gather(*tasks)
+
+def get_game_ids():
     # Get first NBA game ID of the day
 
     # Current NBA games endopoint
@@ -42,32 +45,19 @@ def get_first_game_id():
 
         fixtures = data.get("data")
         if fixtures:
-            game_url = "https://api.dabble.com/sportfixtures/details/" + fixtures[0].get("id") + "?filter=dfs-enabled"
-            game_name = fixtures[0].get("name")
-            print(f"Selected game: {game_name}")
-            return (game_url)
+            game_urls = {}
+            MAX_GAMES = 3
+            for game in range(min(MAX_GAMES, len(fixtures))):
+                game_url = "https://api.dabble.com/sportfixtures/details/" + fixtures[game].get("id") + "?filter=dfs-enabled"
+                game_name = fixtures[game].get("name")
+                game_urls[game_name] = game_url
+            return game_urls
         else:
             print("No fixtures found.")
             return None
 
     except Exception as e:
         print(f"Error fetching match list → {e}")
-        return None
-
-
-async def fetch_data():
-    # Fetch data from API using http2
-    try:
-        async with httpx.AsyncClient(http2=True, verify=False) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status() # Raise error
-
-            # httpx auto-decodes using brotli
-            text = response.text
-            print("Request status:", response.status_code)
-            return json.loads(text)
-    except Exception as e:
-        print(f"Fetch error! -> {e}")
         return None
     
 
@@ -95,19 +85,31 @@ def parse_odds(data):
     return odds
 
 
-async def monitor_odds():
+async def monitor_odds(game_name, game_url):
     # Continuosly checks for odd changes
 
-    global previous_odds
+    previous_odds = {}
+
+    async def fetch_data():
+        # Fetch data from API using http2
+        try:
+            async with httpx.AsyncClient(http2=True, verify=False) as client:
+                response = await client.get(game_url, headers=headers)
+                response.raise_for_status() # Raise error
+
+                # httpx auto-decodes using brotli
+                text = response.text
+                print("...")
+                return json.loads(text)
+        except Exception as e:
+            print(f"Fetch error! -> {e}")
+            return None
 
     while True:
         data = await fetch_data()
 
         if data:
             current_odds = parse_odds(data)
-
-            # Get match name
-            match_name = data.get("data").get("name")
 
             # Loop current odds and compare prices
             for bet_name, new_price in current_odds.items():
@@ -116,7 +118,7 @@ async def monitor_odds():
 
                 # Check if the odd price has changed
                 if old_price is not None and new_price != old_price:
-                    print(f"Match: {match_name}")
+                    print(f"Match: {game_name}")
                     print(f"Bet: {bet_name}")
                     print(f"Old Odds: {old_price} → New Odds: {new_price}")
                     print(f"Timestamp: {datetime.now().isoformat()}")
