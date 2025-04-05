@@ -26,12 +26,12 @@
 
 ## Requirements
 
-Run: **pip install httpx[http2] requests brotli**
+Run: **pip install httpx[http2] requests brotli** or **pip install -r requirements.txt**
 inside your (venv).
 
 ## ⚠️ Notes
 You must run behind a proxy/VPN if Dabble blocks your region.
 
 The script mimics a mobile device using HTTP headers and HTTP/2.
-<br>
+<br></br>
 ![image](https://github.com/user-attachments/assets/90382727-a322-43dc-9bc2-974473d7651b)
