@@ -6,8 +6,7 @@ from datetime import datetime
 import brotli
 import gzip
 
-
-url = "https://api.dabble.com/sportfixtures/details/77bfd4bb-b58f-4b5f-839f-a4f63d63a1fb?filter=dfs-enabled"
+url = None
 headers = {
     "Host": "api.dabble.com",
     "Connection": "keep-alive",
@@ -19,6 +18,43 @@ headers = {
 }
 previous_odds = {}
 
+async def main():
+    global url
+
+    # Get first NBA game
+    game_url = get_first_game_id()
+    if not game_url:
+        print("Could not get a game URL!")
+        return
+    
+    url = game_url
+    await monitor_odds()
+
+def get_first_game_id():
+    # Get first NBA game ID of the day
+
+    # Current NBA games endopoint
+    url = "https://api.dabble.com/competitions/2acf8935-8d89-455b-bb4b-dbfba9c4ae3b/dfs-fixtures"
+    try:
+        response = requests.get(url, headers=headers, proxies={"http": None, "https": None})
+        response.raise_for_status()
+        data = response.json()
+
+        fixtures = data.get("data")
+        if fixtures:
+            game_url = "https://api.dabble.com/sportfixtures/details/" + fixtures[0].get("id") + "?filter=dfs-enabled"
+            game_name = fixtures[0].get("name")
+            print(f"Selected game: {game_name}")
+            return (game_url)
+        else:
+            print("No fixtures found.")
+            return None
+
+    except Exception as e:
+        print(f"Error fetching match list → {e}")
+        return None
+
+
 async def fetch_data():
     # Fetch data from API using http2
     try:
@@ -28,7 +64,7 @@ async def fetch_data():
 
             # httpx auto-decodes using brotli
             text = response.text
-            print("Request status: ", response.status_code)
+            print("Request status:", response.status_code)
             return json.loads(text)
     except Exception as e:
         print(f"Fetch error! -> {e}")
@@ -88,13 +124,10 @@ async def monitor_odds():
             # Save the current odds to compare to the next one
             previous_odds = current_odds
 
-        # The odd prices refresh every ± 3 minutes
+        # The odd prices refresh every ± 3 to 5 minutes
         await asyncio.sleep(30)
 
 
 
-
-
-
 if __name__ == "__main__":
-    asyncio.run(monitor_odds())
+    asyncio.run(main())
