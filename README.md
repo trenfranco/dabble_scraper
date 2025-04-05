@@ -1,6 +1,6 @@
 # 📈 Dabble Odds Monitor
 
-**-This script monitors live betting odds for NBA games from dabble.com using their public API.**
+**-This script monitors live betting odds for NBA games from dabble.com using their API.**
 
 **-It fetches and tracks up to 5 games simultaneously (the number of games can be incremented depending on your region or proxy services) and notifies whenever any odds change.**
 
@@ -33,4 +33,5 @@ inside your (venv).
 You must run behind a proxy/VPN if Dabble blocks your region.
 
 The script mimics a mobile device using HTTP headers and HTTP/2.
+<br>
 ![image](https://github.com/user-attachments/assets/90382727-a322-43dc-9bc2-974473d7651b)
